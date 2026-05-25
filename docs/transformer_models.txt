@@ -1,0 +1,17 @@
+Transformer是一种基于自注意力机制的深度学习架构，由Google在2017年提出。它彻底改变了NLP领域的面貌。
+
+Transformer的核心组件包括：
+1. 多头注意力机制(Multi-Head Attention)：允许模型同时关注输入序列的不同部分
+2. 位置编码(Positional Encoding)：为输入序列添加位置信息
+3. 前馈神经网络(Feed-Forward Neural Network)：对每个位置进行独立的非线性变换
+4. 层归一化(Layer Normalization)：加速训练过程
+
+BERT(Bidirectional Encoder Representations from Transformers)是Google在2018年推出的预训练模型。它采用双向Transformer编码器，通过掩码语言建模(MLM)和下一句预测(NSP)任务进行预训练。
+
+GPT(Generative Pre-trained Transformer)是OpenAI开发的生成式预训练模型。它采用单向Transformer解码器，通过自回归语言建模任务进行预训练。GPT系列模型包括GPT-1、GPT-2、GPT-3和GPT-4等版本。
+
+RoBERTa是Facebook对BERT的改进版本，通过调整训练策略和超参数，在多个NLP任务上取得了更好的性能。
+
+预训练语言模型的出现使得NLP领域进入了一个新时代。通过在大规模文本语料上进行预训练，这些模型能够学习到丰富的语言知识，然后通过微调可以快速适应各种下游任务。
+
+微调(Fine-tuning)是指在预训练模型的基础上，使用特定任务的数据进行进一步训练，以适应具体的应用场景。
