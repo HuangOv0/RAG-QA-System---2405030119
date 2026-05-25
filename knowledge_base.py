@@ -80,7 +80,6 @@ class KnowledgeBase:
             metadatas=metadatas,
             persist_directory=self.persist_directory
         )
-        self.vector_store.persist()
         print(f"向量数据库构建完成，共 {len(all_chunks)} 个文本块")
         return True
 

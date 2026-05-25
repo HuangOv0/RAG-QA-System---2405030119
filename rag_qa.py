@@ -9,7 +9,7 @@ class RAGQA:
     def __init__(self, model_name="deepseek-r1:7b"):
         self.model_name = model_name
         self.kb = KnowledgeBase()
-        self.llm = OllamaLLM(model=model_name)
+        self.llm = OllamaLLM(model=model_name, num_ctx=2048, num_thread=4, temperature=0.1)
         self.memory = ConversationBufferMemory(
             memory_key="chat_history",
             return_messages=True
