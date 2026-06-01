@@ -1,0 +1,14 @@
+BERT（Bidirectional Encoder Representations from Transformers）是由Google于2018年提出的预训练语言模型。
+
+BERT的主要特点：
+1. 双向Transformer架构
+2. 使用Masked Language Modeling（MLM）进行预训练
+3. 支持多种NLP任务的微调
+
+BERT在以下任务上取得了突破性进展：
+- 问答系统（SQuAD）
+- 自然语言推理（MNLI）
+- 命名实体识别（NER）
+- 文本分类
+
+BERT的出现标志着NLP进入了预训练模型时代。
