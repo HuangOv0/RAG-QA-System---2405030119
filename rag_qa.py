@@ -1,115 +1,101 @@
-import os
-from langchain_classic.chains import ConversationalRetrievalChain
-from langchain_ollama import OllamaLLM
-from langchain_classic.memory import ConversationBufferMemory
-from langchain_core.prompts import PromptTemplate
-from knowledge_base import KnowledgeBase
+from langchain_community.chat_models import ChatOllama
+from langchain.chains import ConversationalRetrievalChain
+from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
+from document_processor import DocumentProcessor
 
 class RAGQA:
     def __init__(self, model_name="deepseek-r1:7b"):
         self.model_name = model_name
-        self.kb = KnowledgeBase()
-        self.llm = OllamaLLM(model=model_name, num_ctx=2048, num_thread=4, temperature=0.1)
+        self.llm = ChatOllama(model=model_name, temperature=0.1)
+        self.document_processor = DocumentProcessor()
         self.memory = ConversationBufferMemory(
             memory_key="chat_history",
             return_messages=True
         )
-        self.qa_chain = None
+        self.chain = None
         
-        self.system_prompt = """
-基于提供的参考文档回答问题。
+        self._init_chain()
 
-规则：
-1. 仅使用参考文档中的信息进行回答
-2. 如果文档中没有相关信息，请明确说"文档中未找到相关答案"
-3. 回答要简洁明了，不要添加文档中没有的信息
-4. 如果有多个相关信息，可以综合回答
-"""
-
-    def load_knowledge_base(self, folder_path=None):
-        if folder_path and os.path.exists(folder_path):
-            documents = self.kb.load_documents_from_folder(folder_path)
-            if documents:
-                self.kb.build_vector_store(documents)
-        else:
-            self.kb.load_vector_store()
+    def _init_chain(self):
+        """初始化RAG问答链"""
+        template = """基于提供的参考文档回答用户的问题。
+        如果文档中没有相关信息，请明确说"文档中未找到相关答案"，不要编造答案。
         
-        if self.kb.vector_store:
-            retriever = self.kb.vector_store.as_retriever(search_kwargs={"k": 3})
-            self.qa_chain = ConversationalRetrievalChain.from_llm(
+        参考文档：
+        {context}
+        
+        对话历史：
+        {chat_history}
+        
+        用户问题：
+        {question}
+        
+        请用中文回答："""
+        
+        prompt = PromptTemplate(
+            input_variables=["context", "chat_history", "question"],
+            template=template
+        )
+        
+        if self.document_processor.vector_store is not None:
+            retriever = self.document_processor.vector_store.as_retriever(search_kwargs={"k": 3})
+            self.chain = ConversationalRetrievalChain.from_llm(
                 llm=self.llm,
                 retriever=retriever,
                 memory=self.memory,
-                combine_docs_chain_kwargs={"prompt": self._build_prompt()}
+                combine_docs_chain_kwargs={"prompt": prompt},
+                verbose=True
             )
-            print("RAG问答链初始化完成")
-            return True
-        return False
 
-    def _build_prompt(self):
-        prompt_template = self.system_prompt + """
+    def add_documents(self, documents):
+        """添加文档到知识库"""
+        count = self.document_processor.add_documents(documents)
+        self._init_chain()
+        return count
 
-参考文档：
-{context}
-
-问题：{question}
-
-回答："""
+    def load_documents_from_folder(self, folder_path):
+        """从文件夹加载所有支持的文档"""
+        import os
+        documents = []
+        for filename in os.listdir(folder_path):
+            filepath = os.path.join(folder_path, filename)
+            if os.path.isfile(filepath):
+                ext = os.path.splitext(filename)[1].lower()
+                if ext in [".pdf", ".docx", ".txt"]:
+                    try:
+                        docs = self.document_processor.load_document(filepath)
+                        documents.extend(docs)
+                    except Exception as e:
+                        print(f"加载文件 {filename} 失败: {e}")
         
-        return PromptTemplate(
-            template=prompt_template,
-            input_variables=["context", "question"]
-        )
+        if documents:
+            return self.add_documents(documents)
+        return 0
 
     def ask(self, question):
-        if not self.qa_chain:
-            return "知识库未加载，请先构建或加载知识库"
+        """回答用户问题"""
+        if self.chain is None:
+            return "知识库尚未构建，请先上传文档并构建知识库。"
         
         try:
-            result = self.qa_chain({"question": question})
-            answer = result.get("answer", "")
-            
-            if not answer.strip():
+            result = self.chain.invoke({"question": question})
+            answer = result.get("answer", "").strip()
+            if not answer or "不知道" in answer or "无法回答" in answer:
                 return "文档中未找到相关答案"
-            
             return answer
         except Exception as e:
-            print(f"问答出错: {e}")
-            return f"回答时发生错误: {e}"
+            return f"问答过程中出现错误: {str(e)}"
 
-    def clear_memory(self):
+    def clear_history(self):
+        """清除对话历史"""
         self.memory.clear()
-        print("对话记忆已清除")
 
-    def get_doc_count(self):
-        return self.kb.get_doc_count()
+    def get_knowledge_base_size(self):
+        """获取知识库大小"""
+        return self.document_processor.get_doc_count()
 
-if __name__ == "__main__":
-    print("初始化RAG问答系统...")
-    qa = RAGQA()
-    
-    print("加载知识库...")
-    qa.load_knowledge_base("./docs")
-    
-    print("\nRAG问答系统已就绪！")
-    print("输入 'quit' 或 'exit' 退出")
-    print("输入 'clear' 清除对话历史\n")
-    
-    while True:
-        question = input("请输入问题：")
-        
-        if question.lower() in ["quit", "exit"]:
-            print("退出系统")
-            break
-        
-        if question.lower() == "clear":
-            qa.clear_memory()
-            print("对话历史已清除")
-            continue
-        
-        if not question.strip():
-            continue
-        
-        print("正在思考...")
-        answer = qa.ask(question)
-        print(f"回答：{answer}\n")
+    def clear_knowledge_base(self):
+        """清空知识库"""
+        self.document_processor.clear_vector_store()
+        self.chain = None
