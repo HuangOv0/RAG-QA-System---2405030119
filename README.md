@@ -1,26 +1,25 @@
 # RAG智能问答系统
 
-基于本地知识库的RAG（检索增强生成）智能问答系统，使用Ollama本地大模型、LangChain框架和Streamlit构建。
+基于本地知识库的RAG（检索增强生成）智能问答系统，支持PDF/DOCX文档上传、文本向量化存储和智能问答。
 
-## 功能特点
+## 功能特性
 
-- 📚 支持PDF、DOCX、TXT多种文档格式
-- 🔍 基于Chroma向量数据库的高效文本检索
-- 💬 支持多轮对话和上下文记忆
-- 🖥️ 友好的Web交互界面
-- 🚀 本地部署，无需联网
+- 📄 支持PDF和DOCX文档上传
+- 📚 自动构建本地向量知识库
+- 💬 基于文档内容进行智能问答
+- 🧠 支持多轮对话记忆
+- 📊 实时显示知识库状态
 
 ## 环境要求
 
 - Python 3.10+
-- Ollama（用于运行本地大模型）
-- 至少8GB内存（推荐16GB以上）
+- Ollama（用于部署本地大模型）
 
 ## 安装步骤
 
 ### 1. 安装Ollama
 
-下载并安装Ollama：https://ollama.com/download
+访问 [Ollama官方网站](https://ollama.com/) 下载并安装Ollama。
 
 ### 2. 下载大模型
 
@@ -29,21 +28,9 @@ ollama pull deepseek-r1:7b
 ollama pull nomic-embed-text
 ```
 
-### 3. 克隆仓库
+### 3. 安装依赖
 
 ```bash
-git clone <仓库地址>
-cd RAG-QA-System
-```
-
-### 4. 创建虚拟环境并安装依赖
-
-```bash
-python -m venv venv
-venv\Scripts\activate  # Windows
-# 或
-source venv/bin/activate  # Linux/Mac
-
 pip install -r requirements.txt
 ```
 
@@ -52,72 +39,61 @@ pip install -r requirements.txt
 ### 运行Web应用
 
 ```bash
-streamlit run streamlit_app.py
+streamlit run app.py
 ```
 
-### 使用步骤
+### 使用流程
 
-1. **上传文档**：在左侧栏上传PDF、DOCX或TXT文件
-2. **构建知识库**：点击"构建知识库"按钮处理文档
-3. **加载本地文档**：或点击"加载本地文档"使用docs目录下的示例文档
-4. **提问**：在右侧问答区输入问题并点击"提问"
-5. **查看回答**：系统会基于知识库内容给出回答
+1. 在左侧侧边栏上传PDF或DOCX文档
+2. 点击"构建/更新知识库"按钮
+3. 在主界面输入框中输入问题
+4. 点击发送按钮获取回答
 
 ### 命令行版本
 
 ```bash
-python rag_qa.py
-```
-
-## 项目结构
-
-```
-RAG-QA-System/
-├── docs/                 # 示例文档目录
-├── chroma_db/            # 向量数据库（运行时生成）
-├── knowledge_base.py     # 知识库管理模块
-├── rag_qa.py             # RAG问答链模块
-├── streamlit_app.py      # Streamlit Web应用
-├── test_ollama.py        # Ollama测试脚本
-├── requirements.txt      # 依赖列表
-└── .gitignore            # Git忽略配置
+python cli_qa.py
 ```
 
 ## 关键技术点
 
 ### RAG流程
 
-1. **文档加载**：支持PDF、DOCX、TXT等多种格式
-2. **文本分块**：使用RecursiveCharacterTextSplitter，chunk_size=1000，chunk_overlap=200
-3. **向量化**：使用Ollama内置的nomic-embed-text嵌入模型
-4. **存储**：使用Chroma向量数据库
-5. **检索**：基于相似度检索最相关的3个文本块
-6. **生成**：使用deepseek-r1:7b大模型生成回答
+1. **文档加载**: 使用PyPDFLoader和Docx2txtLoader加载文档
+2. **文本分块**: 使用RecursiveCharacterTextSplitter（chunk_size=1000, chunk_overlap=200）
+3. **向量化**: 使用Ollama的nomic-embed-text嵌入模型
+4. **向量存储**: 使用Chroma向量数据库
+5. **检索**: 基于相似性检索返回最相关的3个文本块
+6. **生成**: 使用DeepSeek-R1大模型进行回答
 
-### 系统提示词设计
+### 系统提示词
 
-系统要求模型仅使用参考文档中的信息进行回答，如果文档中没有相关信息，需明确说明"文档中未找到相关答案"。
+```
+基于提供的参考文档回答用户的问题。
+如果文档中没有相关信息，请明确说"文档中未找到相关答案"，不要编造答案。
+```
 
-## 测试示例
+## 项目结构
 
-**相关问题：**
-- 什么是Transformer?
-- BERT和GPT有什么区别?
-- 文本分类的应用场景有哪些?
-- RAG技术的优势是什么?
-- 情感分析面临哪些挑战?
-
-**无关问题：**
-- 今天天气怎么样?
-- 中国的首都是哪里?
+```
+├── app.py              # Streamlit Web应用
+├── rag_qa.py           # RAG问答链核心逻辑
+├── document_processor.py # 文档处理与向量存储
+├── cli_qa.py           # 命令行版本
+├── test_ollama.py      # Ollama测试脚本
+├── requirements.txt    # 依赖清单
+├── .gitignore          # Git忽略配置
+└── documents/          # 文档存放目录
+```
 
 ## 已知问题与改进方向
 
-- 大模型推理速度较慢，建议使用GPU加速
-- 文档解析对复杂格式支持有限
-- 可增加文档预览和管理功能
-- 可支持更多文档格式（如Markdown、Excel等）
+- [ ] 支持更多文档格式（如TXT、Markdown）
+- [ ] 添加夜间模式
+- [ ] 支持批量文档上传
+- [ ] 添加问答记录导出功能
+- [ ] 优化大模型响应速度
 
-## 许可证
+## License
 
 MIT License
