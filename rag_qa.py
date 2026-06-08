@@ -14,18 +14,18 @@ class RAGQA:
         )
         self.chain = None
         
-        # 尝试初始化LLM
+        # 初始化LLM
         if use_llm:
             self._init_llm()
 
     def _init_llm(self):
-        """初始化大语言模型"""
+        """初始化LLM模型"""
         try:
             from langchain_community.chat_models import ChatOllama
             self.llm = ChatOllama(model="deepseek-r1:7b", temperature=0.1)
-            print("LLM初始化成功")
+            print("LLM模型初始化成功")
         except Exception as e:
-            print(f"LLM初始化失败: {e}")
+            print(f"LLM模型初始化失败: {e}")
             self.use_llm = False
 
     def add_documents(self, documents):
@@ -55,13 +55,13 @@ class RAGQA:
         """回答用户问题"""
         # 检查知识库
         if self.document_processor.get_doc_count() == 0:
-            return "知识库尚未构建，请先上传文档并构建知识库。"
+            return "知识库为空，请先上传文档并构建知识库"
         
         # 检索相关文档
         results = self.document_processor.retrieve(question, k=3)
         
         if not results:
-            return "文档中未找到相关答案"
+            return "未找到相关文档"
         
         # 构建上下文
         context = "\n\n".join([f"文档 {i+1} ({r['metadata'].get('source', '未知')}):\n{r['page_content']}" 
@@ -69,16 +69,16 @@ class RAGQA:
         
         if self.use_llm and self.llm:
             # 使用LLM生成回答
-            template = """基于提供的参考文档回答用户的问题。
-如果文档中没有相关信息，请明确说"文档中未找到相关答案"，不要编造答案。
-
-参考文档：
+            template = """你是一个智能问答助手，请根据提供的参考文档回答用户的问题。
+参考文档如下:
 {context}
 
-用户问题：
+请基于上述文档内容回答用户的问题。如果文档中没有相关信息，请明确说"文档中未找到相关答案"，不要编造答案。
+
+用户问题:
 {question}
 
-请用中文回答："""
+请提供详细的回答:"""
             
             prompt = PromptTemplate(
                 input_variables=["context", "question"],
@@ -90,22 +90,22 @@ class RAGQA:
                 chain = LLMChain(llm=self.llm, prompt=prompt)
                 result = chain.invoke({"context": context, "question": question})
                 answer = result.get("text", "").strip()
-                if not answer or "不知道" in answer or "无法回答" in answer:
+                if not answer or "不知道" in answer or "未找到" in answer:
                     return "文档中未找到相关答案"
                 return answer
             except Exception as e:
-                return f"LLM回答失败，使用检索结果: {str(e)}"
+                return f"LLM生成失败: {str(e)}"
         else:
-            # 直接返回检索结果摘要
-            answer = f"根据知识库检索到以下相关信息：\n\n"
+            # 简单基于检索结果的回答
+            answer = f"基于知识库找到以下相关信息:\n\n"
             for i, result in enumerate(results):
                 source = result['metadata'].get('source', '未知')
                 content = result['page_content'][:300]
-                answer += f"【来源: {os.path.basename(source)}】\n{content}...\n\n"
+                answer += f"• 来源: {os.path.basename(source)}\n{content}...\n\n"
             return answer
 
     def clear_history(self):
-        """清除对话历史"""
+        """清空对话历史"""
         self.memory.clear()
 
     def get_knowledge_base_size(self):
