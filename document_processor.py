@@ -7,7 +7,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 class SimpleEmbeddings:
-    """简单的TF-IDF嵌入模型"""
+    """简单的TF-IDF向量化"""
     def __init__(self):
         self.vectorizer = TfidfVectorizer(max_features=384)
         self.fitted = False
@@ -17,7 +17,7 @@ class SimpleEmbeddings:
             self.vectorizer.fit(texts)
             self.fitted = True
         vectors = self.vectorizer.transform(texts).toarray()
-        # 调整维度到384
+        # 确保向量维度为384
         if vectors.shape[1] < 384:
             padding = np.zeros((vectors.shape[0], 384 - vectors.shape[1]))
             vectors = np.concatenate([vectors, padding], axis=1)
@@ -42,13 +42,13 @@ class DocumentProcessor:
         self._init_chroma()
 
     def _init_chroma(self):
-        """初始化Chroma客户端"""
+        """初始化Chroma数据库"""
         try:
             self.client = chromadb.PersistentClient(
                 path=self.persist_directory,
                 settings=Settings(anonymized_telemetry=False)
             )
-            # 创建或获取集合
+            # 获取或创建集合
             self.collection = self.client.get_or_create_collection("rag_collection")
         except Exception as e:
             print(f"初始化Chroma失败: {e}")
@@ -56,7 +56,7 @@ class DocumentProcessor:
             self.collection = None
 
     def load_document(self, file_path):
-        """加载单个文档并提取文本"""
+        """加载单个文档"""
         ext = os.path.splitext(file_path)[1].lower()
         if ext == ".pdf":
             loader = PyPDFLoader(file_path)
@@ -70,15 +70,15 @@ class DocumentProcessor:
         return loader.load()
 
     def split_documents(self, documents):
-        """将文档分割成文本块"""
+        """分割文档"""
         return self.text_splitter.split_documents(documents)
 
     def _embed_texts(self, texts):
-        """嵌入文本"""
+        """向量化文本"""
         return self.embeddings.embed_documents(texts)
 
     def create_vector_store(self, documents):
-        """创建并保存向量数据库"""
+        """创建向量存储"""
         if self.collection is None:
             print("Chroma未初始化")
             return 0
@@ -87,13 +87,13 @@ class DocumentProcessor:
         text_contents = [t.page_content for t in texts]
         text_metadata = [{"source": t.metadata.get("source", "unknown")} for t in texts]
 
-        # 手动嵌入
+        # 向量化
         embeddings = self._embed_texts(text_contents)
         
-        # 生成唯一ID
+        # 生成ID
         ids = [f"doc_{i}" for i in range(len(text_contents))]
 
-        # 添加到集合
+        # 添加到数据库
         self.collection.add(
             documents=text_contents,
             embeddings=embeddings,
@@ -104,7 +104,7 @@ class DocumentProcessor:
         return len(texts)
 
     def load_vector_store(self):
-        """加载已保存的向量数据库"""
+        """加载向量存储"""
         if os.path.exists(self.persist_directory):
             try:
                 self.client = chromadb.PersistentClient(
@@ -114,12 +114,12 @@ class DocumentProcessor:
                 self.collection = self.client.get_collection("rag_collection")
                 return True
             except Exception as e:
-                print(f"加载向量库失败: {e}")
+                print(f"加载向量存储失败: {e}")
                 return False
         return False
 
     def add_documents(self, new_documents):
-        """向现有向量库添加新文档"""
+        """添加新文档到现有知识库"""
         if self.collection is None:
             self.load_vector_store()
 
@@ -130,14 +130,14 @@ class DocumentProcessor:
         text_contents = [t.page_content for t in texts]
         text_metadata = [{"source": t.metadata.get("source", "unknown")} for t in texts]
 
-        # 获取当前文档数量
+        # 为新文档生成ID
         count = self.get_doc_count()
         ids = [f"doc_{count + i}" for i in range(len(text_contents))]
 
-        # 手动嵌入
+        # 向量化
         embeddings = self._embed_texts(text_contents)
 
-        # 添加到集合
+        # 添加到数据库
         self.collection.add(
             documents=text_contents,
             embeddings=embeddings,
@@ -148,23 +148,23 @@ class DocumentProcessor:
         return len(texts)
 
     def retrieve(self, query, k=3):
-        """检索与查询最相关的k个文本块"""
+        """检索相关文档"""
         if self.collection is None:
             self.load_vector_store()
 
         if self.collection is None:
             return []
 
-        # 嵌入查询
+        # 向量化查询
         query_embedding = self.embeddings.embed_query(query)
         
-        # 查询
+        # 检索
         results = self.collection.query(
             query_embeddings=[query_embedding],
             n_results=k
         )
 
-        # 转换结果格式
+        # 处理结果
         docs = []
         if results and 'documents' in results and results['documents'][0]:
             for i, doc in enumerate(results['documents'][0]):
@@ -178,7 +178,7 @@ class DocumentProcessor:
         return docs
 
     def get_doc_count(self):
-        """获取向量库中文档数量"""
+        """获取文档数量"""
         if self.collection is None:
             self.load_vector_store()
 
@@ -188,7 +188,7 @@ class DocumentProcessor:
         return self.collection.count()
 
     def clear_vector_store(self):
-        """清空向量数据库"""
+        """清空向量存储"""
         if os.path.exists(self.persist_directory):
             import shutil
             shutil.rmtree(self.persist_directory)
